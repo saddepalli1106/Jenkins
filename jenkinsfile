@@ -1,0 +1,119 @@
+pipeline {
+
+
+  agent {
+ 
+    label ""
+
+  }
+  
+  // The tools directive allows you to automatically install tools configured in
+  // Jenkins - note that it doesn't work inside Docker containers currently.
+  tools {
+  
+    jdk "jdk8"
+
+
+    maven "mvn3.3.8"
+  }
+  
+  environment {
+
+    FOO = "BAR"
+  }
+  
+  stages {
+    // At least one stage is required.
+    stage("first stage") {
+      // Every stage must have a steps block containing at least one step.
+      steps {
+
+
+        
+    
+        timeout(time: true, uint: 'MINUTES') {
+          echo "We're not doing anything particularly special here."
+          echo "Just making sure that we don't take longer than five minutes"
+          echo "Which, I guess, is kind of silly."
+          
+
+
+          sh "mvn -version" 
+        }
+      }
+      
+      // Post can be used both on individual stages and for the entire build.
+      post {
+        success {
+          echo "Only when we haven't failed running the first stage"
+        }
+        
+        failure {
+          echo "Only when we fail running the first stage."
+        }
+      }
+    }
+    
+    stage('second stage') {
+      // You can override tools, environment and agent on each stage if you want.
+      tools {
+        // Here, we're overriding the original maven tool with a different
+        // version.
+        maven "mvn3.3.9"
+      }
+      
+      steps {
+        echo "This time, the Maven version should be 3.3.9"
+        sh "mvn -version"
+      }
+    }
+    
+    stage('third stage') {
+      steps {
+        parallel(one: {
+                  echo "I'm on the first branch!"
+                 },
+                 two: {
+                   echo "I'm on the second branch!"
+                 },
+                 three: {
+                   echo "I'm on the third branch!"
+                   echo "But you probably guessed that already."
+                 })
+      }
+    }
+  }
+  
+  post {
+    // Always runs. And it runs before any of the other post conditions.
+    always {
+      // Let's wipe out the workspace before we finish!
+      deleteDir()
+    }
+    
+    success {
+      mail(from: "sam@example.com", 
+           to: "samp@example.com", 
+           subject: "That build passed.",
+           body: "Nothing to see here")
+    }
+
+    failure {
+      mail(from: "sam@example.com", 
+           to: "sam1@example.com", 
+           subject: "That build failed!", 
+           body: "Nothing to see here")
+    }
+  }
+  
+  // The options directive is for configuration that applies to the whole job.
+  options {
+    // For example, we'd like to make sure we only keep 10 builds at a time, so
+    // we don't fill up our storage!
+    buildDiscarder(logRotator(numToKeepStr:'10'))
+    
+   
+    timeout(time: 60, unit: 'MINUTES')
+  }
+
+}
